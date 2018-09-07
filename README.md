@@ -4,7 +4,7 @@ Para ejecutar el proyecto debe usarse el comando:
 
 ## Contenidos
 Los contenidos de cada archivo .py en la carpeta son:
-- algorithm.py - Algoritmo constructivo
+- algorithm.py - Diferentes algoritmos que hallan soluciones
 - objects.py - Definición de las clases usadas
 - random_generator.py - Generación aleatoria de las entradas
 - readinput.py - Lectura de los archivos de entrada y salida de los datos para CPLEX

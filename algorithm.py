@@ -63,3 +63,32 @@ def constructive_method(level1, level2, clients, p, q):
             func_obj += cap * cost
 
     return level1, level2, clients, func_obj
+
+def min_cost_max_flow(level1, level2, clients, p, q):
+    obj_to_i = {}
+    i_to_obj = {}
+    index = 1
+    # Asignar a instalaciones de nivel 2 los indices del [1-q]
+    for l2 in level2:
+        obj_to_i[l2] = index
+        i_to_obj[index] = l2
+        index += 1
+
+    # Asignar a instalaciones de nivel 1 los indices del [q+1, q+p]
+    for l1 in level1:
+        obj_to_i[l1] = index
+        i_to_obj[index] = l1
+        index += 1
+
+    # Asignar segundo nodo de instalaciones de nivel 1 los indices del [q+p+1, q+2p]
+    for l1 in level1:
+        i_to_obj[index] = l1
+        index += 1
+
+    # Asignar a instalaciones de nivel 1 los indices del [q+2p+1, q+2p+i]
+    # dónde i es el numero de clientes
+    for cl in clients:
+        obj_to_i[cl] = index
+        i_to_obj[index] = cl
+        index += 1
+
