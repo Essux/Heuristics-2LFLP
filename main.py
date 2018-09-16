@@ -49,7 +49,7 @@ calculateWeights()
 # Exportar input para CPLEX
 model_export(filename + '.dat', clients, level1, level2, p, q)
 
-# Graficar input
+# Graficar entradas
 plotAnnot(level1, 'b')
 plotAnnot(clients, 'r')
 plotAnnot(level2, 'g')

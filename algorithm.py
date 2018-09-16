@@ -1,8 +1,10 @@
 from math import inf
 from itertools import product
 
-# Ejecuta el método constructivo y retorna las instalaciones seleccionadas,
-# los clientes y el valor de la función objetivo de la solución
+"""
+ Ejecuta el método constructivo y retorna las instalaciones seleccionadas,
+ los clientes y el valor de la función objetivo de la solución
+"""
 def constructive_method(level1, level2, clients, p, q):
     # Tomar las p instalaciones de nivel 1 con más capacidad
     level1 = sorted(level1, key=lambda x : x.m, reverse=True)[:p]
@@ -64,6 +66,11 @@ def constructive_method(level1, level2, clients, p, q):
 
     return level1, level2, clients, func_obj
 
+"""
+ Retorna la asignación óptima de un conjunto de instalaciones
+ usando el algoritmo de Edmonds Karp con relabelling y el algoritmo
+ de Dijkstra
+"""
 def min_cost_max_flow(level1, level2, clients, p, q):
     obj_to_i = {}
     i_to_obj = {}
@@ -234,4 +241,26 @@ def min_cost_max_flow(level1, level2, clients, p, q):
 
         flow += bot
 
-    return flow, fcost
+    for i in range(n):
+        for j in range(n):
+            print('{:4d}'.format(fnet[i][j] - fnet[j][i]), end='')
+        print()
+
+    for i in range(1, q+1):
+        for j in range(q+1, q+p+1):
+            level2[i-1].u[j-(q+1)] = fnet[i][j] - fnet[j][i]
+
+    for l in level2:
+        assert(sum(l.u)<=l.m)
+
+    for i in range(q+p+1, q+2*p+1):
+        for j in range(q+2*p+1, q+2*p+1+len(clients)):
+            level1[i-(q+p+1)].u[j-(q+2*p+1)] = fnet[i][j] - fnet[j][i]
+
+    for l in level1:
+        assert(sum(l.u)<=l.m)
+
+    for i in range(q+2*p+1, q+2*p+1+len(clients)):
+        clients[i-(q+2*p+1)].sd = fnet[i][sink] - fnet[sink][i]
+
+    return level1, level2, clients, flow, fcost
