@@ -2,10 +2,10 @@ from random import randint
 import sys
 
 LEVEL_MAX = 20
-LEVEL_MIN = 20
-CLIENT_MAX = 10
-CLIENT_MIN = 10
-CAP_MAX = 20
+LEVEL_MIN = 13
+CLIENT_MAX = 12
+CLIENT_MIN = 8
+CAP_MAX = 200
 COOR_MAX = 1000
 COOR_MIN = 0
 
@@ -21,7 +21,7 @@ def generate(file):
         print(randint(COOR_MIN, COOR_MAX), randint(COOR_MIN, COOR_MAX), c)
 
     I = randint(LEVEL_MIN, LEVEL_MAX)
-    p = randint(LEVEL_MIN, LEVEL_MAX)
+    p = randint(LEVEL_MIN, I)
     print(I, p)
     cs = []
     for i in range(I-1):
@@ -32,7 +32,7 @@ def generate(file):
     print(randint(COOR_MIN, COOR_MAX), randint(COOR_MIN, COOR_MAX), max(randint(1, CAP_MAX), clSum-lSum))
 
     I = randint(LEVEL_MIN, LEVEL_MAX)
-    p = randint(LEVEL_MIN, LEVEL_MAX)
+    p = randint(LEVEL_MIN, I)
     print(I, p)
     cs = []
     for i in range(I-1):

@@ -1,5 +1,7 @@
 from math import inf
 from itertools import product
+from random import sample
+from custom_util import obj_function
 
 """
  Ejecuta el método constructivo y retorna las instalaciones seleccionadas,
@@ -164,7 +166,6 @@ def min_cost_max_flow(level1, level2, clients, p, q):
     fcost = 0
     # Padre de cada nodo
     par = []
-    assert len(adj)-1 == sink
 
     ### Inicio del algoritmo MinCostMaxFlow ###
     for i in range(n):
@@ -241,26 +242,40 @@ def min_cost_max_flow(level1, level2, clients, p, q):
 
         flow += bot
 
-    for i in range(n):
-        for j in range(n):
-            print('{:4d}'.format(fnet[i][j] - fnet[j][i]), end='')
-        print()
-
     for i in range(1, q+1):
         for j in range(q+1, q+p+1):
-            level2[i-1].u[j-(q+1)] = fnet[i][j] - fnet[j][i]
-
-    for l in level2:
-        assert(sum(l.u)<=l.m)
+            level2[i-1].u[i_to_obj[j].i] = fnet[i][j] - fnet[j][i]
 
     for i in range(q+p+1, q+2*p+1):
         for j in range(q+2*p+1, q+2*p+1+len(clients)):
-            level1[i-(q+p+1)].u[j-(q+2*p+1)] = fnet[i][j] - fnet[j][i]
-
-    for l in level1:
-        assert(sum(l.u)<=l.m)
+            level1[i-(q+p+1)].u[i_to_obj[j].i]= fnet[i][j] - fnet[j][i]
 
     for i in range(q+2*p+1, q+2*p+1+len(clients)):
-        clients[i-(q+2*p+1)].sd = fnet[i][sink] - fnet[sink][i]
+        clients[i_to_obj[i].i].sd = fnet[i][sink] - fnet[sink][i]
 
     return level1, level2, clients, flow, fcost
+
+
+"""
+ Selecciona aleatoriamente p y q instalaciones y
+ retorna su asignación óptima
+"""
+def random_method(level1, level2, clients, p, q, iterations=1):
+    bestObj = inf
+    ans_sel_level1, ans_sel_level2, ans_clients = None, None, None
+
+    for i in range(iterations):
+        sel_level1 = sample(level1, p)
+        sel_level2 = sample(level2, q)
+        sel_level1 = list(map(lambda x : x.new_clone(), sel_level1))
+        sel_level2 = list(map(lambda x : x.new_clone(), sel_level2))
+
+        cand_sel_level1, cand_sel_level2, cand_clients, flow, fcost = min_cost_max_flow(sel_level1, sel_level2, clients, p, q)
+        cand_obj = obj_function(cand_sel_level1, cand_sel_level2)
+
+        if cand_obj < bestObj:
+            ans_sel_level1, ans_sel_level2, ans_clients = cand_sel_level1, cand_sel_level2, cand_clients
+            bestObj = cand_obj
+
+    return ans_sel_level1, ans_sel_level2, ans_clients
+

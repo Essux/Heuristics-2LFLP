@@ -28,3 +28,12 @@ class Facility:
         self.uSum = 0
         # InFlow
         self.inflow = 0
+
+    def __repr__(self):
+        return "<Facility Instance {}: x {} y {} m {} in {} u_len {} u_sum {} inflow {}>".format(
+                    self.i, self.x, self.y, self.m, self.is_in, len(self.u), sum(self.u), self.inflow)
+
+    def new_clone(self):
+        new_obj = Facility(self.x, self.y, self.m, self.i, len(self.u))
+        new_obj.c = self.c
+        return new_obj
