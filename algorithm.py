@@ -53,20 +53,7 @@ def constructive_method(level1, level2, clients, p, q):
         l.u[cl.i] += flow
         l.uSum += flow
 
-    # Cálculo de la función objetivo
-    func_obj = 0
-
-    for l in level1:
-        for cap, cost in zip(l.u, l.c):
-            # Suma del flujo entre cada pareja por el costo
-            # unitario de transporte
-            func_obj += cap * cost
-
-    for l in level2:
-        for cap, cost in zip(l.u, l.c):
-            func_obj += cap * cost
-
-    return level1, level2, clients, func_obj
+    return level1, level2, clients
 
 """
  Retorna la asignación óptima de un conjunto de instalaciones
@@ -265,13 +252,19 @@ def random_method(level1, level2, clients, p, q, iterations=1):
     ans_sel_level1, ans_sel_level2, ans_clients = None, None, None
 
     for i in range(iterations):
+        # Elegir aleatoriamente p instalaciones
         sel_level1 = sample(level1, p)
         sel_level2 = sample(level2, q)
         sel_level1 = list(map(lambda x : x.new_clone(), sel_level1))
         sel_level2 = list(map(lambda x : x.new_clone(), sel_level2))
 
+        # Calcular la asignación óptima usando MinCostMaxFlow
         cand_sel_level1, cand_sel_level2, cand_clients, flow, fcost = min_cost_max_flow(sel_level1, sel_level2, clients, p, q)
         cand_obj = obj_function(cand_sel_level1, cand_sel_level2)
+
+        # Omit unfeasible solutions
+        if flow != sum([x.d for x in clients]):
+            continue
 
         if cand_obj < bestObj:
             ans_sel_level1, ans_sel_level2, ans_clients = cand_sel_level1, cand_sel_level2, cand_clients
@@ -279,3 +272,16 @@ def random_method(level1, level2, clients, p, q, iterations=1):
 
     return ans_sel_level1, ans_sel_level2, ans_clients
 
+
+def average_cost_method(level1, level2, clients, p, q):
+    # Seleccionar las primeras instalaciones con menor costo promedio
+    level1.sort(key=lambda x : sum(x.c))
+    sel_level1 = level1[:p]
+    level2.sort(key=lambda x : sum(x.c))
+    sel_level2 = level2[:q]
+
+    # Calcular la asignación óptima usando MinCostMaxFlow
+    sel_level1, sel_level2, clients, flow, fcost = min_cost_max_flow(sel_level1, sel_level2, clients, p, q)
+    assert(flow == sum([x.d for x in clients]))
+
+    return sel_level1, sel_level2, clients
