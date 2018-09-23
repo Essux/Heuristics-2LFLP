@@ -1,6 +1,6 @@
-from math import inf
+from math import inf, sqrt
 from itertools import product
-from random import sample
+from random import sample, normalvariate
 from custom_util import obj_function
 
 """
@@ -245,7 +245,7 @@ def min_cost_max_flow(level1, level2, clients, p, q):
 
 """
  Selecciona aleatoriamente p y q instalaciones y
- retorna su asignación óptima
+ retorna su asignación óptima usando MinCostMaxFlow
 """
 def random_method(level1, level2, clients, p, q, iterations=1):
     bestObj = inf
@@ -272,12 +272,16 @@ def random_method(level1, level2, clients, p, q, iterations=1):
 
     return ans_sel_level1, ans_sel_level2, ans_clients
 
-
+"""
+ Selecciona las instalaciones con menor costo promedio
+ y retorna su asignación óptima usando MinCostMaxFlow
+"""
 def average_cost_method(level1, level2, clients, p, q):
     # Seleccionar las primeras instalaciones con menor costo promedio
-    level1.sort(key=lambda x : sum(x.c))
+    level1.sort(key=lambda x : x.cSum)
     sel_level1 = level1[:p]
-    level2.sort(key=lambda x : sum(x.c))
+
+    level2.sort(key=lambda x : x.cSum)
     sel_level2 = level2[:q]
 
     # Calcular la asignación óptima usando MinCostMaxFlow
@@ -285,3 +289,23 @@ def average_cost_method(level1, level2, clients, p, q):
     assert(flow == sum([x.d for x in clients]))
 
     return sel_level1, sel_level2, clients
+
+"""
+ Selecciona las instalaciones con menor costo promedio
+ añadiendo un ruido aleatorio normal al costo y
+ retorna su asignación óptima usando MinCostMaxFlow
+"""
+def noise_costs(level1, level2, clients, p, q):
+    l1_costs = [sum(x.c)/len(x.c) for x in level1]
+    mean = sum(l1_costs) / len(l1_costs)
+    sd = sqrt(sum([(x-mean)**2 for x in l1_costs]) / (len(l1_costs) - 1))
+    for x in level1:
+        x.cSum = x.cSum + normalvariate(0, sd)
+
+    l2_costs = [sum(x.c)/len(x.c) for x in level2]
+    mean = sum(l2_costs) / len(l2_costs)
+    sd = sqrt(sum([(x-mean)**2 for x in l2_costs]) / (len(l2_costs) - 1))
+    for x in level2:
+        x.cSum = x.cSum + normalvariate(0, sd)
+
+    return average_cost_method(level1, level2, clients, p, q)
