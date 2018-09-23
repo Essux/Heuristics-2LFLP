@@ -10,6 +10,14 @@ class Client:
         # Identifier
         self.i = i
 
+    def __repr__(self):
+        return "<Client Instance {}: x {} y {} d {} sd {}>".format(
+                    self.i, self.x, self.y, self.d, self.sd)
+
+    def new_clone(self):
+        new_obj = Client(self.x, self.y, self.d, self.i)
+        return new_obj
+
 class Facility:
     def __init__(self, x, y, m, i, n_fac):
         # Coordinates
@@ -23,6 +31,7 @@ class Facility:
         self.is_in = 0
         # Costs
         self.c = [0 for x in range(n_fac)]
+        self.cSum = 0
         # OutFlow
         self.u = [0 for x in range(n_fac)]
         self.uSum = 0

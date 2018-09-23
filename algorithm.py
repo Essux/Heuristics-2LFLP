@@ -4,8 +4,8 @@ from random import sample, normalvariate
 from custom_util import obj_function
 
 """
- Ejecuta el método constructivo y retorna las instalaciones seleccionadas,
- los clientes y el valor de la función objetivo de la solución
+ Selecciona las instalaciones de mayor capacidad y
+ asigna los flujos de material con menor coste
 """
 def constructive_method(level1, level2, clients, p, q):
     # Tomar las p instalaciones de nivel 1 con más capacidad
@@ -269,6 +269,8 @@ def random_method(level1, level2, clients, p, q, iterations=1):
         if cand_obj < bestObj:
             ans_sel_level1, ans_sel_level2, ans_clients = cand_sel_level1, cand_sel_level2, cand_clients
             bestObj = cand_obj
+
+    assert(ans_sel_level1 is not None)
 
     return ans_sel_level1, ans_sel_level2, ans_clients
 

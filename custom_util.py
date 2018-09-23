@@ -1,4 +1,5 @@
 from math import sqrt, inf
+import matplotlib.pyplot as plt
 
 # Retorna la distancia entre dos puntos
 def dist(a, b):
@@ -19,3 +20,48 @@ def obj_function(sel_level1, sel_level2):
             func_obj += cap * cost
 
     return func_obj
+
+# Calcular pesos entre todas las parejas de puntos
+def calculateWeights(level1, level2, clients):
+    for l in level1:
+        for i in range(len(l.c)):
+            l.c[i] = dist(l, clients[i])
+
+    for l in level2:
+        for i in range(len(l.c)):
+            l.c[i] = dist(l, level1[i])
+
+# Graficar un conjunto de instalaciones
+def plotAnnot(li, color):
+    plt.scatter([x.x for x in li], [x.y for x in li], color=color)
+    for l in li:
+        plt.annotate(l.i+1, (l.x+0.5, l.y+0.5))
+
+# Graficar flujo entre instalaciones
+def plotFlow(li1, li2, color, mxflow):
+    for l in li1:
+        for c in li2:
+            f = l.u[c.i]
+            if f > 0: plt.plot([l.x, c.x], [l.y, c.y], color = color, linewidth=f/mxflow*3)
+
+# Graficar una solución
+def plotSolution(level1, level2, clients):
+    # Graficar solución
+    mxflow = max(max([max(x.u) for x in level1]), max([max(x.u) for x in level2]))
+    plotFlow(level1, clients, 'r', mxflow)
+    plotFlow(level2, level1, 'b', mxflow)
+
+    plt.show()
+
+# Imprimir información sobre la ejecución de un algoritmo
+def printSolution(sel_level1, sel_level2, clients, p, q, ps):
+    print('Función Objetivo: {:.2f}'.format(obj_function(sel_level1, sel_level2)))
+    print('Clientes: {}'.format(len(clients)))
+    print('Tiempo del algoritmo: {:.3f}'.format(ps.total_tt))
+    print()
+
+def copy_solution(level1, level2, clients):
+    level1_temp = [x.new_clone() for x in level1]
+    level2_temp = [x.new_clone() for x in level2]
+    clients_temp = [x.new_clone() for x in clients]
+    return level1_temp, level2_temp, clients_temp
