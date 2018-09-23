@@ -1,5 +1,6 @@
 from math import sqrt, inf
 import matplotlib.pyplot as plt
+import cProfile, pstats
 
 # Retorna la distancia entre dos puntos
 def dist(a, b):
@@ -51,7 +52,6 @@ def plotSolution(level1, level2, clients):
     plotFlow(level1, clients, 'r', mxflow)
     plotFlow(level2, level1, 'b', mxflow)
 
-    plt.show()
 
 # Imprimir información sobre la ejecución de un algoritmo
 def printSolution(sel_level1, sel_level2, clients, p, q, ps):
@@ -60,8 +60,15 @@ def printSolution(sel_level1, sel_level2, clients, p, q, ps):
     print('Tiempo del algoritmo: {:.3f}'.format(ps.total_tt))
     print()
 
+# Crear una copia vacía de los objetos
 def copy_solution(level1, level2, clients):
     level1_temp = [x.new_clone() for x in level1]
     level2_temp = [x.new_clone() for x in level2]
     clients_temp = [x.new_clone() for x in clients]
     return level1_temp, level2_temp, clients_temp
+
+def save_profile_file(filename, pr):
+    profile_file = open(filename+'.profile', 'w')
+    ps = pstats.Stats(pr, stream=profile_file).strip_dirs().sort_stats('cumtime').print_stats()
+    profile_file.close()
+    return ps

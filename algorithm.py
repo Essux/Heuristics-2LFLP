@@ -1,7 +1,8 @@
 from math import inf, sqrt
 from itertools import product
-from random import sample, normalvariate
+from random import sample, normalvariate, randrange
 from custom_util import obj_function
+from collections import deque
 
 """
  Selecciona las instalaciones de mayor capacidad y
@@ -52,6 +53,9 @@ def constructive_method(level1, level2, clients, p, q):
         # Actualizar el flujo de material saliente de la instalación de nivel 2
         l.u[cl.i] += flow
         l.uSum += flow
+
+    for cl in clients:
+        assert(cl.d==cl.sd)
 
     return level1, level2, clients
 
@@ -311,3 +315,75 @@ def noise_costs(level1, level2, clients, p, q):
         x.cSum = x.cSum + normalvariate(0, sd)
 
     return average_cost_method(level1, level2, clients, p, q)
+
+
+"""
+ Selecciona las instalaciones de mayor capacidad y
+ asigna los flujos de material con menor coste
+"""
+def rcl_constructive(level1, level2, clients, p, q, k=5):
+    # Tomar p instalaciones de nivel 1 aleatoriamente
+    level1 = sample(level1, p)
+    # Tomar q instalaciones de nivel 2 aleatoriamente
+    level2 = sample(level2, q)
+
+    # Generar todas las parejas de instalaciones de nivel 1 con clientes
+    con1 = [(t[0].c[t[1].i], t[0], t[1]) for t in product(level1, clients)]
+
+    # Ordenar las parejas de menor a mayor costo
+    con1.sort(key=lambda x : x[0])
+    con1 = deque(con1)
+
+    rcl1 = []
+
+    while con1 or rcl1:
+        # Añadir las aristas faltantes a la rcl para que alcance tamaño k
+        while len(rcl1) < k and con1:
+            rcl1.append(con1.popleft())
+
+        # Seleccionar una arista aleatoriamente de la rcl
+        sel_i = randrange(len(rcl1))
+        sel = rcl1[sel_i]
+        del rcl1[sel_i]
+
+        l = sel[1]
+        cl = sel[2]
+        # Llevar el máximo material posible entre el cliente y la instalación
+        flow = min(cl.d-cl.sd, l.m-l.uSum)
+        # Actualizar la demanda satisfecha del cliente
+        cl.sd += flow
+        # Actualizar el flujo de material saliente de la instalación
+        l.u[cl.i] += flow
+        l.uSum += flow
+
+    # Repetir un proceso similar al anterior pero tomando como clientes
+    # a las instalaciones de nivel 1
+    con2 = [(t[0].c[t[1].i], t[0], t[1]) for t in product(level2, level1)]
+
+    con2.sort(key=lambda x : x[0])
+    con2 = deque(con2)
+
+    rcl2 = []
+
+    while con2 or rcl2:
+        while len(rcl2) < k and con2:
+            rcl2.append(con2.popleft())
+
+        sel_i = randrange(len(rcl2))
+        sel = rcl2[sel_i]
+        del rcl2[sel_i]
+
+        l = sel[1]
+        cl = sel[2]
+        # Llevar el máximo material posible entre instalaciones
+        flow = min(cl.uSum-cl.inflow, l.m-l.uSum)
+        # Actualizar el flujo entrante de la instalación de nivel 1
+        cl.inflow += flow
+        # Actualizar el flujo de material saliente de la instalación de nivel 2
+        l.u[cl.i] += flow
+        l.uSum += flow
+
+    for cl in clients:
+        assert(cl.d==cl.sd)
+
+    return level1, level2, clients
