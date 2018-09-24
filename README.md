@@ -26,7 +26,7 @@ En cada ejecución del programa, se genera una gráfica en matplotlib que contie
 Al ser ejecutado el proyecto genera los siguientes archivos:
 - I1.dat - Incluye los datos para ser usados en CPLEX
 - I1.in - Archivo donde se almacenan los datos de entrada
-- I1.profile - Incluye información detallada sobre el rendimiento del algoritmo constructivo
+- I1.profile - Incluye información detallada sobre el rendimiento del algoritmo ejecutado
 
 ## Requerimientos
 - matplotlib

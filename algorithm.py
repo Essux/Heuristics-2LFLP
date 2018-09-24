@@ -1,9 +1,12 @@
-from math import inf
+from math import inf, sqrt
 from itertools import product
+from random import sample, normalvariate, randrange
+from custom_util import obj_function
+from collections import deque
 
 """
- Ejecuta el método constructivo y retorna las instalaciones seleccionadas,
- los clientes y el valor de la función objetivo de la solución
+ Selecciona las instalaciones de mayor capacidad y
+ asigna los flujos de material con menor coste
 """
 def constructive_method(level1, level2, clients, p, q):
     # Tomar las p instalaciones de nivel 1 con más capacidad
@@ -51,20 +54,10 @@ def constructive_method(level1, level2, clients, p, q):
         l.u[cl.i] += flow
         l.uSum += flow
 
-    # Cálculo de la función objetivo
-    func_obj = 0
+    for cl in clients:
+        assert(cl.d==cl.sd)
 
-    for l in level1:
-        for cap, cost in zip(l.u, l.c):
-            # Suma del flujo entre cada pareja por el costo
-            # unitario de transporte
-            func_obj += cap * cost
-
-    for l in level2:
-        for cap, cost in zip(l.u, l.c):
-            func_obj += cap * cost
-
-    return level1, level2, clients, func_obj
+    return level1, level2, clients
 
 """
  Retorna la asignación óptima de un conjunto de instalaciones
@@ -164,7 +157,6 @@ def min_cost_max_flow(level1, level2, clients, p, q):
     fcost = 0
     # Padre de cada nodo
     par = []
-    assert len(adj)-1 == sink
 
     ### Inicio del algoritmo MinCostMaxFlow ###
     for i in range(n):
@@ -241,26 +233,157 @@ def min_cost_max_flow(level1, level2, clients, p, q):
 
         flow += bot
 
-    for i in range(n):
-        for j in range(n):
-            print('{:4d}'.format(fnet[i][j] - fnet[j][i]), end='')
-        print()
-
     for i in range(1, q+1):
         for j in range(q+1, q+p+1):
-            level2[i-1].u[j-(q+1)] = fnet[i][j] - fnet[j][i]
-
-    for l in level2:
-        assert(sum(l.u)<=l.m)
+            level2[i-1].u[i_to_obj[j].i] = fnet[i][j] - fnet[j][i]
 
     for i in range(q+p+1, q+2*p+1):
         for j in range(q+2*p+1, q+2*p+1+len(clients)):
-            level1[i-(q+p+1)].u[j-(q+2*p+1)] = fnet[i][j] - fnet[j][i]
-
-    for l in level1:
-        assert(sum(l.u)<=l.m)
+            level1[i-(q+p+1)].u[i_to_obj[j].i]= fnet[i][j] - fnet[j][i]
 
     for i in range(q+2*p+1, q+2*p+1+len(clients)):
-        clients[i-(q+2*p+1)].sd = fnet[i][sink] - fnet[sink][i]
+        clients[i_to_obj[i].i].sd = fnet[i][sink] - fnet[sink][i]
 
     return level1, level2, clients, flow, fcost
+
+
+"""
+ Selecciona aleatoriamente p y q instalaciones y
+ retorna su asignación óptima usando MinCostMaxFlow
+"""
+def random_method(level1, level2, clients, p, q, iterations=1):
+    bestObj = inf
+    ans_sel_level1, ans_sel_level2, ans_clients = None, None, None
+
+    for i in range(iterations):
+        # Elegir aleatoriamente p instalaciones
+        sel_level1 = sample(level1, p)
+        sel_level2 = sample(level2, q)
+        sel_level1 = list(map(lambda x : x.new_clone(), sel_level1))
+        sel_level2 = list(map(lambda x : x.new_clone(), sel_level2))
+
+        # Calcular la asignación óptima usando MinCostMaxFlow
+        cand_sel_level1, cand_sel_level2, cand_clients, flow, fcost = min_cost_max_flow(sel_level1, sel_level2, clients, p, q)
+        cand_obj = obj_function(cand_sel_level1, cand_sel_level2)
+
+        # Omit unfeasible solutions
+        if flow != sum([x.d for x in clients]):
+            continue
+
+        if cand_obj < bestObj:
+            ans_sel_level1, ans_sel_level2, ans_clients = cand_sel_level1, cand_sel_level2, cand_clients
+            bestObj = cand_obj
+
+    assert(ans_sel_level1 is not None)
+
+    return ans_sel_level1, ans_sel_level2, ans_clients
+
+"""
+ Selecciona las instalaciones con menor costo promedio
+ y retorna su asignación óptima usando MinCostMaxFlow
+"""
+def average_cost_method(level1, level2, clients, p, q):
+    # Seleccionar las primeras instalaciones con menor costo promedio
+    level1.sort(key=lambda x : x.cSum)
+    sel_level1 = level1[:p]
+
+    level2.sort(key=lambda x : x.cSum)
+    sel_level2 = level2[:q]
+
+    # Calcular la asignación óptima usando MinCostMaxFlow
+    sel_level1, sel_level2, clients, flow, fcost = min_cost_max_flow(sel_level1, sel_level2, clients, p, q)
+    assert(flow == sum([x.d for x in clients]))
+
+    return sel_level1, sel_level2, clients
+
+"""
+ Selecciona las instalaciones con menor costo promedio
+ añadiendo un ruido aleatorio normal al costo y
+ retorna su asignación óptima usando MinCostMaxFlow
+"""
+def noise_costs(level1, level2, clients, p, q):
+    l1_costs = [sum(x.c)/len(x.c) for x in level1]
+    mean = sum(l1_costs) / len(l1_costs)
+    sd = sqrt(sum([(x-mean)**2 for x in l1_costs]) / (len(l1_costs) - 1))
+    for x in level1:
+        x.cSum = x.cSum + normalvariate(0, sd)
+
+    l2_costs = [sum(x.c)/len(x.c) for x in level2]
+    mean = sum(l2_costs) / len(l2_costs)
+    sd = sqrt(sum([(x-mean)**2 for x in l2_costs]) / (len(l2_costs) - 1))
+    for x in level2:
+        x.cSum = x.cSum + normalvariate(0, sd)
+
+    return average_cost_method(level1, level2, clients, p, q)
+
+
+"""
+ Selecciona las instalaciones de mayor capacidad y
+ asigna los flujos de material con menor coste
+"""
+def rcl_constructive(level1, level2, clients, p, q, k=5):
+    # Tomar p instalaciones de nivel 1 aleatoriamente
+    level1 = sample(level1, p)
+    # Tomar q instalaciones de nivel 2 aleatoriamente
+    level2 = sample(level2, q)
+
+    # Generar todas las parejas de instalaciones de nivel 1 con clientes
+    con1 = [(t[0].c[t[1].i], t[0], t[1]) for t in product(level1, clients)]
+
+    # Ordenar las parejas de menor a mayor costo
+    con1.sort(key=lambda x : x[0])
+    con1 = deque(con1)
+
+    rcl1 = []
+
+    while con1 or rcl1:
+        # Añadir las aristas faltantes a la rcl para que alcance tamaño k
+        while len(rcl1) < k and con1:
+            rcl1.append(con1.popleft())
+
+        # Seleccionar una arista aleatoriamente de la rcl
+        sel_i = randrange(len(rcl1))
+        sel = rcl1[sel_i]
+        del rcl1[sel_i]
+
+        l = sel[1]
+        cl = sel[2]
+        # Llevar el máximo material posible entre el cliente y la instalación
+        flow = min(cl.d-cl.sd, l.m-l.uSum)
+        # Actualizar la demanda satisfecha del cliente
+        cl.sd += flow
+        # Actualizar el flujo de material saliente de la instalación
+        l.u[cl.i] += flow
+        l.uSum += flow
+
+    # Repetir un proceso similar al anterior pero tomando como clientes
+    # a las instalaciones de nivel 1
+    con2 = [(t[0].c[t[1].i], t[0], t[1]) for t in product(level2, level1)]
+
+    con2.sort(key=lambda x : x[0])
+    con2 = deque(con2)
+
+    rcl2 = []
+
+    while con2 or rcl2:
+        while len(rcl2) < k and con2:
+            rcl2.append(con2.popleft())
+
+        sel_i = randrange(len(rcl2))
+        sel = rcl2[sel_i]
+        del rcl2[sel_i]
+
+        l = sel[1]
+        cl = sel[2]
+        # Llevar el máximo material posible entre instalaciones
+        flow = min(cl.uSum-cl.inflow, l.m-l.uSum)
+        # Actualizar el flujo entrante de la instalación de nivel 1
+        cl.inflow += flow
+        # Actualizar el flujo de material saliente de la instalación de nivel 2
+        l.u[cl.i] += flow
+        l.uSum += flow
+
+    for cl in clients:
+        assert(cl.d==cl.sd)
+
+    return level1, level2, clients

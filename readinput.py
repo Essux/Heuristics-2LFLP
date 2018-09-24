@@ -14,13 +14,16 @@ def read(file):
     level1 = []
     for j in range(J):
         x, y, m = map(int, input().split())
-        level1.append(Facility(x, y, m, j, I))
+        f = Facility(x, y, m, j, I)
+        f.cSum = sum(f.c)
+        level1.append(f)
 
     K, q = map(int, input().split())
     level2 = []
     for k in range(K):
         x, y, m = map(int, input().split())
         f = Facility(x, y, m, k, J)
+        f.cSum = sum(f.c)
         level2.append(f)
 
     sys.stdin.close()
