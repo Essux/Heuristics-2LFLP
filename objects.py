@@ -1,3 +1,18 @@
+class Solution:
+    def __init__(self, level1 = [], level2 = [], clients = [], p = 0, q = 0):
+        self.level1 = level1
+        self.level2 = level2
+        self.clients = clients
+        self.p = p
+        self.q = q
+
+    def copy_solution(self):
+        level1 = [x.new_clone() for x in self.level1]
+        level2 = [x.new_clone() for x in self.level2]
+        clients = [x.new_clone() for x in self.clients]
+        return Solution(level1, level2, clients, self.p, self.q)
+
+
 class Client:
     def __init__(self, x, y, d, i):
         # Coordinates
