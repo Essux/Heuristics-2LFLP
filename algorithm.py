@@ -1,5 +1,5 @@
 from math import inf, sqrt
-from itertools import product
+from itertools import product, combinations, combinations_with_replacement
 from random import sample, normalvariate, randrange
 from custom_util import obj_function
 from collections import deque
@@ -318,7 +318,7 @@ def noise_costs(level1, level2, clients, p, q):
 
 
 """
- Selecciona las instalaciones de mayor capacidad y
+ Selecciona instalaciones aleatoriamente y
  asigna los flujos de material con menor coste
 """
 def rcl_constructive(level1, level2, clients, p, q, k=5):
@@ -387,3 +387,124 @@ def rcl_constructive(level1, level2, clients, p, q, k=5):
         assert(cl.d==cl.sd)
 
     return level1, level2, clients
+
+# Asegurarse que los atributos de la solución tengan los valores que deberían
+def setup_solution(sol):
+    for location in sol.level1:
+        location.uSum = sum(location.u)
+    for location in sol.level2:
+        location.uSum = sum(location.u)
+
+"""
+ Genera el vecindario de una solución con movimientos de
+ quitar y poner instalaciones
+"""
+def facility_inout_neighborhood(sol):
+    setup_solution(sol)
+    initial_cost = obj_function(sol.level1, sol.level2)
+
+    l1_in = list(filter(lambda x : x.is_in, sol.level1))
+    l1_out = list(filter(lambda x : not x.is_in, sol.level1))
+    print('moves in 1')
+    for l_in in l1_in:
+        for l_out in l1_out:
+            if l_in.uSum <= l_out.m:
+                next_sol = sol.copy_solution(copyFlow = True)
+                next_l_in = next_sol.level1[l_in.i]
+                next_l_out = next_sol.level1[l_out.i]
+                next_l_in.is_in = False
+                next_l_out.is_in = True
+                next_l_in.u, next_l_out.u = next_l_out.u, next_l_in.u
+
+                for l2 in next_sol.level2:
+                    l2.u[l_in.i], l2.u[l_out.i] = l2.u[l_out.i], l2.u[l_in.i]
+
+                yield next_sol
+
+    print('moves in 2')
+    l2_in = list(filter(lambda x : x.is_in, sol.level2))
+    l2_out = list(filter(lambda x : not x.is_in, sol.level2))
+    for l_in in l2_in:
+        for l_out in l2_out:
+            if l_in.uSum <= l_out.m:
+                next_sol = sol.copy_solution(copyFlow = True)
+                next_l_in = next_sol.level2[l_in.i]
+                next_l_out = next_sol.level2[l_out.i]
+                next_l_in.is_in = False
+                next_l_out.is_in = True
+                next_l_in.u, next_l_out.u = next_l_out.u, next_l_in.u
+
+                yield next_sol
+                """
+                print("out {} in {} can".format(l_in.i, l_out.i))
+
+                cur_cost = obj_function(next_sol.level1, next_sol.level2)
+                print("Next solution cost {:.2f} delta {:.2f}".format(cur_cost, cur_cost-initial_cost))
+                """
+
+"""
+ Genera el vecindario de una solución basado en movimientos de flujos
+"""
+def inlevel_neighborhood(sol):
+    setup_solution(sol)
+    initial_cost = obj_function(sol.level1, sol.level2)
+
+    level2 = list(filter(lambda x: x.is_in, sol.level2))
+
+    for l2 in level2:
+        for l1 in sol.level1:
+            if l2.u[l1.i] == 0: continue
+            cur_flow = l2.u[l1.i]
+
+            for new_l2 in level2:
+                if new_l2.i == l2.i: continue
+                avail_cap = new_l2.m - new_l2.uSum
+                flow_delta = min(avail_cap, cur_flow)
+
+                if flow_delta == 0: continue
+                next_sol = sol.copy_solution(copyFlow=True)
+                next_sol.level2[l2.i].u[l1.i] -= flow_delta
+                next_sol.level2[new_l2.i].u[l1.i] += flow_delta
+
+                yield next_sol
+
+                """
+                cur_cost = obj_function(next_sol.level1, next_sol.level2)
+                print("{} {} -> {} {}".format(l2.i, l1.i, new_l2.i, l1.i))
+                print("flow delta {} costs {:.2f} vs {:.2f}".format(flow_delta, l2.c[l1.i], new_l2.c[l1.i]))
+                print("Next solution cost {:.2f} delta {:.2f}%".format(cur_cost, 100*(cur_cost-initial_cost)/initial_cost))
+                print()
+                """
+
+
+def local_search(sol):
+    cur_cost = obj_function(sol.level1, sol.level2)
+    print('initial cost: {:.2f}'.format(cur_cost))
+    found_better = True
+    while found_better:
+        found_better = False
+        for next_sol in inlevel_neighborhood(sol):
+            cand_cost = obj_function(next_sol.level1, next_sol.level2)
+            print('candidate cost: {:.2f}'.format(cand_cost))
+            if cand_cost < cur_cost:
+                print('new best')
+                sol = next_sol
+                cur_cost = cand_cost
+                found_better = True
+                break
+
+    return sol
+
+def variable_neighborhood_search(sol):
+    cur_cost = obj_function(sol.level1, sol.level2)
+    print('initial cost: {:.2f}'.format(cur_cost))
+    for sol2 in facility_inout_neighborhood(sol):
+        sol3 = local_search(sol2)
+        cand_cost = obj_function(sol3.level1, sol3.level2)
+        print('candidate cost: {:.2f}'.format(cand_cost))
+        if cand_cost < cur_cost:
+            print('new best')
+            sol = sol3
+            cur_cost = cand_cost
+
+    return sol

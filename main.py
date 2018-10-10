@@ -1,4 +1,4 @@
-from objects import Facility, Client
+from objects import Facility, Client, Solution
 from readinput import read, model_export
 from math import sqrt, inf
 from matplotlib import pyplot as plt
@@ -18,6 +18,7 @@ calculateWeights(level1, level2, clients)
 #model_export(filename + '.dat', clients, level1, level2, p, q)
 
 METHOD_NAMES = ['Constructive Method', 'Random + MaxFlow', 'Greedy + MaxFlow', 'Noise + Greedy + MaxFlow', 'RCL']
+
 
 def executeMethod(op):
     global level1, level2, clients, p, q
@@ -43,7 +44,7 @@ def executeMethod(op):
 # 2 -> Greedy
 # 3 -> Noise + Greedy
 # 4 -> RCL
-CHOOSE = [0, 1, 2, 3, 4]
+CHOOSE = [0, 1, 2, 3]
 
 for op in CHOOSE:
     try:
@@ -52,6 +53,13 @@ for op in CHOOSE:
         pr.enable()
 
         sel_level1, sel_level2, clients = executeMethod(op)
+
+        sel_solution = Solution(sel_level1, sel_level2, clients, p, q)
+        empty_solution = Solution(level1, level2, clients, p, q)
+        full_solution = mergeSolutions(sel_solution, empty_solution)
+
+        sol = local_search(full_solution)
+        sel_level1, sel_level2, clients = sol.level1, sol.level2, clients
 
         pr.disable()
         ps = save_profile_file(filename, pr)

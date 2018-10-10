@@ -1,6 +1,7 @@
 from math import sqrt, inf
 import matplotlib.pyplot as plt
 import cProfile, pstats
+from objects import Solution
 
 # Retorna la distancia entre dos puntos
 def dist(a, b):
@@ -72,3 +73,26 @@ def save_profile_file(filename, pr):
     ps = pstats.Stats(pr, stream=profile_file).strip_dirs().sort_stats('cumtime').print_stats()
     profile_file.close()
     return ps
+
+def mergeSolutions(sel, empty):
+    sel1_indices = {x.i:x for x in sel.level1}
+    level1 = []
+    for i in range(len(empty.level1)):
+        if i in sel1_indices:
+            loc = sel1_indices[i]
+            loc.is_in = True
+            level1.append(loc)
+        else:
+            level1.append(empty.level1[i].new_clone())
+
+    sel2_indices = {x.i:x for x in sel.level2}
+    level2 = []
+    for i in range(len(empty.level2)):
+        if i in sel2_indices:
+            loc = sel2_indices[i]
+            loc.is_in = True
+            level2.append(loc)
+        else:
+            level2.append(empty.level2[i].new_clone())
+
+    return Solution(level1, level2, empty.clients, empty.p, empty.q)
