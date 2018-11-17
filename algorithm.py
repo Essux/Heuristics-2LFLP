@@ -1,7 +1,8 @@
 from math import inf, sqrt
 from itertools import product, combinations, combinations_with_replacement
 from random import sample, normalvariate, randrange
-from custom_util import obj_function
+from custom_util import obj_function, copy_solution, mergeSolutions
+from objects import Solution
 from collections import deque
 
 """
@@ -494,42 +495,59 @@ def facility_inout_neighborhood(sol):
 
     l1_in = list(filter(lambda x : x.is_in, sol.level1))
     l1_out = list(filter(lambda x : not x.is_in, sol.level1))
-    print('moves in 1')
+
+    # Intercambiar instalaciones de nivel 1
     for l_in in l1_in:
         for l_out in l1_out:
             if l_in.uSum <= l_out.m:
-                next_sol = sol.copy_solution(copyFlow = True)
-                next_l_in = next_sol.level1[l_in.i]
-                next_l_out = next_sol.level1[l_out.i]
-                next_l_in.is_in = False
-                next_l_out.is_in = True
-                next_l_in.u, next_l_out.u = next_l_out.u, next_l_in.u
+                func_obj_delta = 0
+                for i in range(len(l_in.u)):
+                    func_obj_delta += (l_out.u[i] - l_in.u[i]) * l_in.c[i]
+                for i in range(len(l_in.u)):
+                    func_obj_delta += (l_in.u[i] - l_out.u[i]) * l_out.c[i]
+                for l2 in sol.level2:
+                    func_obj_delta += (l2.u[l_out.i] - l2.u[l_in.i]) * l2.c[l_in.i]
+                    func_obj_delta += (l2.u[l_in.i] - l2.u[l_out.i]) * l2.c[l_out.i]
 
-                for l2 in next_sol.level2:
-                    l2.u[l_in.i], l2.u[l_out.i] = l2.u[l_out.i], l2.u[l_in.i]
+                if func_obj_delta < 0:
+                    next_sol = sol.copy_solution(copyFlow = True)
+                    next_l_in = next_sol.level1[l_in.i]
+                    next_l_out = next_sol.level1[l_out.i]
+                    next_l_in.is_in = False
+                    next_l_out.is_in = True
+                    next_l_in.u, next_l_out.u = next_l_out.u, next_l_in.u
 
-                yield next_sol
+                    for l2 in next_sol.level2:
+                        l2.u[l_in.i], l2.u[l_out.i] = l2.u[l_out.i], l2.u[l_in.i]
 
-    print('moves in 2')
+                else: next_sol = None
+
+                yield next_sol, func_obj_delta
+
+
+    # Intercambiar instalaciones de nivel 2
     l2_in = list(filter(lambda x : x.is_in, sol.level2))
     l2_out = list(filter(lambda x : not x.is_in, sol.level2))
     for l_in in l2_in:
         for l_out in l2_out:
             if l_in.uSum <= l_out.m:
-                next_sol = sol.copy_solution(copyFlow = True)
-                next_l_in = next_sol.level2[l_in.i]
-                next_l_out = next_sol.level2[l_out.i]
-                next_l_in.is_in = False
-                next_l_out.is_in = True
-                next_l_in.u, next_l_out.u = next_l_out.u, next_l_in.u
+                func_obj_delta = 0
+                for i in range(len(l_in.u)):
+                    func_obj_delta += (l_out.u[i] - l_in.u[i]) * l_in.c[i]
+                for i in range(len(l_in.u)):
+                    func_obj_delta += (l_in.u[i] - l_out.u[i]) * l_out.c[i]
 
-                yield next_sol
-                """
-                print("out {} in {} can".format(l_in.i, l_out.i))
+                if func_obj_delta < 0:
+                    next_sol = sol.copy_solution(copyFlow = True)
+                    next_l_in = next_sol.level2[l_in.i]
+                    next_l_out = next_sol.level2[l_out.i]
+                    next_l_in.is_in = False
+                    next_l_out.is_in = True
+                    next_l_in.u, next_l_out.u = next_l_out.u, next_l_in.u
+                else: next_sol = None
 
-                cur_cost = obj_function(next_sol.level1, next_sol.level2)
-                print("Next solution cost {:.2f} delta {:.2f}".format(cur_cost, cur_cost-initial_cost))
-                """
+                yield next_sol, func_obj_delta
+
 
 """
  Genera el vecindario de una solución basado en movimientos de flujos
@@ -551,19 +569,15 @@ def inlevel_neighborhood(sol):
                 flow_delta = min(avail_cap, cur_flow)
 
                 if flow_delta == 0: continue
-                next_sol = sol.copy_solution(copyFlow=True)
-                next_sol.level2[l2.i].u[l1.i] -= flow_delta
-                next_sol.level2[new_l2.i].u[l1.i] += flow_delta
 
-                yield next_sol
+                func_obj_delta = flow_delta * sol.level2[new_l2.i].c[l1.i] - flow_delta * sol.level2[l2.i].c[l1.i]
+                if func_obj_delta < 0:
+                    next_sol = sol.copy_solution(copyFlow=True)
+                    next_sol.level2[l2.i].u[l1.i] -= flow_delta
+                    next_sol.level2[new_l2.i].u[l1.i] += flow_delta
+                else: next_sol = None
 
-                """
-                cur_cost = obj_function(next_sol.level1, next_sol.level2)
-                print("{} {} -> {} {}".format(l2.i, l1.i, new_l2.i, l1.i))
-                print("flow delta {} costs {:.2f} vs {:.2f}".format(flow_delta, l2.c[l1.i], new_l2.c[l1.i]))
-                print("Next solution cost {:.2f} delta {:.2f}%".format(cur_cost, 100*(cur_cost-initial_cost)/initial_cost))
-                print()
-                """
+                yield next_sol, func_obj_delta
 
 
 def local_search(sol):
@@ -572,9 +586,9 @@ def local_search(sol):
     found_better = True
     while found_better:
         found_better = False
-        for next_sol in inlevel_neighborhood(sol):
-            cand_cost = obj_function(next_sol.level1, next_sol.level2)
-            print('candidate cost: {:.2f}'.format(cand_cost))
+        for next_sol, delta in facility_inout_neighborhood(sol):
+            #cand_cost = obj_function(next_sol.level1, next_sol.level2)
+            cand_cost = cur_cost + delta
             if cand_cost < cur_cost:
                 print('new best')
                 sol = next_sol
@@ -584,16 +598,31 @@ def local_search(sol):
 
     return sol
 
-def variable_neighborhood_search(sol):
+
+def variable_neighborhood_descent(sol):
+    print('VND')
     cur_cost = obj_function(sol.level1, sol.level2)
-    print('initial cost: {:.2f}'.format(cur_cost))
-    for sol2 in facility_inout_neighborhood(sol):
-        sol3 = local_search(sol2)
-        cand_cost = obj_function(sol3.level1, sol3.level2)
-        print('candidate cost: {:.2f}'.format(cand_cost))
-        if cand_cost < cur_cost:
-            print('new best')
-            sol = sol3
-            cur_cost = cand_cost
+    found_better = True
+
+    neighborhoods = [inlevel_neighborhood, facility_inout_neighborhood]
+
+    j = 0
+    while j < len(neighborhoods):
+        best_cand = None
+        best_cand_cost = inf
+        for cand_sol, cost_delta in neighborhoods[j](sol):
+            cand_cost = cur_cost + cost_delta
+            if cand_cost < cur_cost:
+                best_cand = cand_sol
+                best_cand_cost = cand_cost
+                break
+
+        if best_cand_cost < cur_cost:
+            j = 0
+            sol = best_cand
+            cur_cost = best_cand_cost
+        else:
+            j += 1
 
     return sol
+
