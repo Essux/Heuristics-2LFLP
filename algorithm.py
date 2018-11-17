@@ -283,10 +283,18 @@ def random_method(level1, level2, clients, p, q, iterations=1):
  y retorna su asignación óptima usando MinCostMaxFlow
 """
 def average_cost_method(level1, level2, clients, p, q):
+    # Garantizar que la suma de los costos esté actualizada
+    if level1[0].cSum == 0:
+        for l1 in level1:
+            l1.cSum = sum(l1.c)
     # Seleccionar las primeras instalaciones con menor costo promedio
     level1.sort(key=lambda x : x.cSum)
     sel_level1 = level1[:p]
 
+    # Garantizar que la suma de los costos esté actualizada
+    if level2[0].cSum == 0:
+        for l2 in level2:
+            l2.cSum = sum(l2.c)
     level2.sort(key=lambda x : x.cSum)
     sel_level2 = level2[:q]
 
