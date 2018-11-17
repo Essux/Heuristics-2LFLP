@@ -1,7 +1,8 @@
 from math import inf, sqrt
-from itertools import product
+from itertools import product, combinations, combinations_with_replacement
 from random import sample, normalvariate, randrange
-from custom_util import obj_function
+from custom_util import obj_function, copy_solution, mergeSolutions
+from objects import Solution
 from collections import deque
 
 """
@@ -283,10 +284,18 @@ def random_method(level1, level2, clients, p, q, iterations=1):
  y retorna su asignación óptima usando MinCostMaxFlow
 """
 def average_cost_method(level1, level2, clients, p, q):
+    # Garantizar que la suma de los costos esté actualizada
+    if level1[0].cSum == 0:
+        for l1 in level1:
+            l1.cSum = sum(l1.c)
     # Seleccionar las primeras instalaciones con menor costo promedio
     level1.sort(key=lambda x : x.cSum)
     sel_level1 = level1[:p]
 
+    # Garantizar que la suma de los costos esté actualizada
+    if level2[0].cSum == 0:
+        for l2 in level2:
+            l2.cSum = sum(l2.c)
     level2.sort(key=lambda x : x.cSum)
     sel_level2 = level2[:q]
 
@@ -318,7 +327,7 @@ def noise_costs(level1, level2, clients, p, q):
 
 
 """
- Selecciona las instalaciones de mayor capacidad y
+ Selecciona instalaciones aleatoriamente y
  asigna los flujos de material con menor coste
 """
 def rcl_constructive(level1, level2, clients, p, q, k=5):
@@ -387,3 +396,256 @@ def rcl_constructive(level1, level2, clients, p, q, k=5):
         assert(cl.d==cl.sd)
 
     return level1, level2, clients
+
+"""
+    Seleccionar las instalaciones con una RCL según el menor promedio de costes.
+    Posteriormente asignar los flujos con una RCL de las aristas según el menor coste.
+"""
+def rcl_constructive2(level1, level2, clients, p, q, k):
+    for l1 in level1:
+        l1.cSum = sum(l1.c)
+    level1.sort(key=lambda x: x.cSum)
+    level1 = deque(level1)
+    sel_level1 = []
+    rcl1 = []
+    while len(sel_level1)<p:
+        while len(rcl1) < k and level1:
+            rcl1.append(level1.popleft())
+
+        sel_i = randrange(len(rcl1))
+        sel = rcl1[sel_i]
+        del rcl1[sel_i]
+
+        sel_level1.append(sel)
+
+    level1 = sel_level1
+
+    for l2 in level2:
+        l2.cSum = sum(l2.c)
+    level2.sort(key=lambda x: x.cSum)
+    level2 = deque(level2)
+    sel_level2 = []
+    rcl2 = []
+    while len(sel_level2)<q:
+        while len(rcl2) < k and level2:
+            rcl2.append(level2.popleft())
+
+        sel_i = randrange(len(rcl2))
+        sel = rcl2[sel_i]
+        del rcl2[sel_i]
+
+        sel_level2.append(sel)
+
+    level2 = sel_level2
+
+    # Generar todas las parejas de instalaciones de nivel 1 con clientes
+    con1 = [(t[0].c[t[1].i], t[0], t[1]) for t in product(level1, clients)]
+
+    # Ordenar las parejas de menor a mayor costo
+    con1.sort(key=lambda x : x[0])
+
+    for t in con1:
+        l = t[1]
+        cl = t[2]
+        # Llevar el máximo material posible entre el cliente y la instalación
+        flow = min(cl.d-cl.sd, l.m-l.uSum)
+        # Actualizar la demanda satisfecha del cliente
+        cl.sd += flow
+        # Actualizar el flujo de material saliente de la instalación
+        l.u[cl.i] += flow
+        l.uSum += flow
+
+    # Repetir un proceso similar al anterior pero tomando como clientes
+    # a las instalaciones de nivel 1
+    con2 = [(t[0].c[t[1].i], t[0], t[1]) for t in product(level2, level1)]
+
+    # Ordenar las parejas de menor a mayor costo
+    con2.sort(key=lambda x : x[0])
+
+    for t in con2:
+        l = t[1]
+        cl = t[2]
+        # Llevar el máximo material posible entre instalaciones
+        flow = min(cl.uSum-cl.inflow, l.m-l.uSum)
+        # Actualizar el flujo entrante de la instalación de nivel 1
+        cl.inflow += flow
+        # Actualizar el flujo de material saliente de la instalación de nivel 2
+        l.u[cl.i] += flow
+        l.uSum += flow
+
+    for cl in clients:
+        assert(cl.d==cl.sd)
+
+    return level1, level2, clients
+
+# Asegurarse que los atributos de la solución tengan los valores que deberían
+def setup_solution(sol):
+    for location in sol.level1:
+        location.uSum = sum(location.u)
+    for location in sol.level2:
+        location.uSum = sum(location.u)
+
+"""
+ Genera el vecindario de una solución con movimientos de
+ quitar y poner instalaciones
+"""
+def facility_inout_neighborhood(sol):
+    setup_solution(sol)
+    initial_cost = obj_function(sol.level1, sol.level2)
+
+    l1_in = list(filter(lambda x : x.is_in, sol.level1))
+    l1_out = list(filter(lambda x : not x.is_in, sol.level1))
+
+    # Intercambiar instalaciones de nivel 1
+    for l_in in l1_in:
+        for l_out in l1_out:
+            if l_in.uSum <= l_out.m:
+                func_obj_delta = 0
+                for i in range(len(l_in.u)):
+                    func_obj_delta += (l_out.u[i] - l_in.u[i]) * l_in.c[i]
+                for i in range(len(l_in.u)):
+                    func_obj_delta += (l_in.u[i] - l_out.u[i]) * l_out.c[i]
+                for l2 in sol.level2:
+                    func_obj_delta += (l2.u[l_out.i] - l2.u[l_in.i]) * l2.c[l_in.i]
+                    func_obj_delta += (l2.u[l_in.i] - l2.u[l_out.i]) * l2.c[l_out.i]
+
+                if func_obj_delta < 0:
+                    next_sol = sol.copy_solution(copyFlow = True)
+                    next_l_in = next_sol.level1[l_in.i]
+                    next_l_out = next_sol.level1[l_out.i]
+                    next_l_in.is_in = False
+                    next_l_out.is_in = True
+                    next_l_in.u, next_l_out.u = next_l_out.u, next_l_in.u
+
+                    for l2 in next_sol.level2:
+                        l2.u[l_in.i], l2.u[l_out.i] = l2.u[l_out.i], l2.u[l_in.i]
+
+                else: next_sol = None
+
+                yield next_sol, func_obj_delta
+
+
+    # Intercambiar instalaciones de nivel 2
+    l2_in = list(filter(lambda x : x.is_in, sol.level2))
+    l2_out = list(filter(lambda x : not x.is_in, sol.level2))
+    for l_in in l2_in:
+        for l_out in l2_out:
+            if l_in.uSum <= l_out.m:
+                func_obj_delta = 0
+                for i in range(len(l_in.u)):
+                    func_obj_delta += (l_out.u[i] - l_in.u[i]) * l_in.c[i]
+                for i in range(len(l_in.u)):
+                    func_obj_delta += (l_in.u[i] - l_out.u[i]) * l_out.c[i]
+
+                if func_obj_delta < 0:
+                    next_sol = sol.copy_solution(copyFlow = True)
+                    next_l_in = next_sol.level2[l_in.i]
+                    next_l_out = next_sol.level2[l_out.i]
+                    next_l_in.is_in = False
+                    next_l_out.is_in = True
+                    next_l_in.u, next_l_out.u = next_l_out.u, next_l_in.u
+                else: next_sol = None
+
+                yield next_sol, func_obj_delta
+
+
+"""
+ Genera el vecindario de una solución basado en movimientos de flujos
+"""
+def inlevel_neighborhood(sol):
+    setup_solution(sol)
+    initial_cost = obj_function(sol.level1, sol.level2)
+
+    level2 = list(filter(lambda x: x.is_in, sol.level2))
+
+    for l2 in level2:
+        for l1 in sol.level1:
+            if l2.u[l1.i] == 0: continue
+            cur_flow = l2.u[l1.i]
+
+            for new_l2 in level2:
+                if new_l2.i == l2.i: continue
+                avail_cap = new_l2.m - new_l2.uSum
+                flow_delta = min(avail_cap, cur_flow)
+
+                if flow_delta == 0: continue
+
+                func_obj_delta = flow_delta * sol.level2[new_l2.i].c[l1.i] - flow_delta * sol.level2[l2.i].c[l1.i]
+                if func_obj_delta < 0:
+                    next_sol = sol.copy_solution(copyFlow=True)
+                    next_sol.level2[l2.i].u[l1.i] -= flow_delta
+                    next_sol.level2[new_l2.i].u[l1.i] += flow_delta
+                else: next_sol = None
+
+                yield next_sol, func_obj_delta
+
+
+def local_search(sol):
+    cur_cost = obj_function(sol.level1, sol.level2)
+    print('initial cost: {:.2f}'.format(cur_cost))
+    found_better = True
+    while found_better:
+        found_better = False
+        for next_sol, delta in facility_inout_neighborhood(sol):
+            #cand_cost = obj_function(next_sol.level1, next_sol.level2)
+            cand_cost = cur_cost + delta
+            if cand_cost < cur_cost:
+                print('new best')
+                sol = next_sol
+                cur_cost = cand_cost
+                found_better = True
+                break
+
+    return sol
+
+
+def variable_neighborhood_descent(sol):
+    print('VND')
+    cur_cost = obj_function(sol.level1, sol.level2)
+    found_better = True
+
+    neighborhoods = [inlevel_neighborhood, facility_inout_neighborhood]
+
+    j = 0
+    while j < len(neighborhoods):
+        best_cand = None
+        best_cand_cost = inf
+        for cand_sol, cost_delta in neighborhoods[j](sol):
+            cand_cost = cur_cost + cost_delta
+            if cand_cost < cur_cost:
+                best_cand = cand_sol
+                best_cand_cost = cand_cost
+                break
+
+        if best_cand_cost < cur_cost:
+            j = 0
+            sol = best_cand
+            cur_cost = best_cand_cost
+        else:
+            j += 1
+
+    return sol
+
+def grasp(empty_sol, iterations = 10, k=5, rcl_method=rcl_constructive2):
+    print('Method: {}'.format(rcl_method.__name__))
+    best_sol = None
+    best_obj = inf
+    for i in range(iterations):
+        level1_temp, level2_temp, clients_temp = copy_solution(empty_sol.level1, empty_sol.level2, empty_sol.clients)
+        sel_level1, sel_level2, clients = rcl_method(level1_temp, level2_temp, clients_temp, empty_sol.p, empty_sol.q, k = k)
+
+        sel_solution = Solution(sel_level1, sel_level2, clients, empty_sol.p, empty_sol.q)
+        empty_solution = Solution(empty_sol.level1, empty_sol.level2, empty_sol.clients, empty_sol.p, empty_sol.q)
+        full_solution = mergeSolutions(sel_solution, empty_solution)
+        func_obj = obj_function(full_solution.level1, full_solution.level2)
+        #print('GRASP it {} starts with {:,.2f}'.format(i+1, func_obj))
+
+        sol = variable_neighborhood_descent(full_solution)
+        func_obj = obj_function(sol.level1, sol.level2)
+        #print('GRASP it {} ends with {:,.2f}'.format(i+1, func_obj))
+
+        if func_obj < best_obj:
+            best_sol = sol
+            best_obj = func_obj
+
+    return best_sol
