@@ -1,15 +1,11 @@
 from random import randint
 import sys
 
-LEVEL_MAX = 35
-LEVEL_MIN = 25
-CLIENT_MAX = 20
-CLIENT_MIN = 15
 CAP_MAX = 200
 COOR_MAX = 1000
 COOR_MIN = 0
 
-def generate(file):
+def generate(file, LEVEL_MAX, LEVEL_MIN, CLIENT_MAX, CLIENT_MIN):
     sys.stdout = open(file, 'w')
     I = randint(CLIENT_MIN, CLIENT_MAX)
     I1 = I
