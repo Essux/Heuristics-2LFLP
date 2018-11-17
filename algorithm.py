@@ -396,6 +396,87 @@ def rcl_constructive(level1, level2, clients, p, q, k=5):
 
     return level1, level2, clients
 
+"""
+    Seleccionar las instalaciones con una RCL según el menor promedio de costes.
+    Posteriormente asignar los flujos con una RCL de las aristas según el menor coste.
+"""
+def rcl_constructive2(level1, level2, clients, p, q, k):
+    for l1 in level1:
+        l1.cSum = sum(l1.c)
+    level1.sort(key=lambda x: x.cSum)
+    level1 = deque(level1)
+    sel_level1 = []
+    rcl1 = []
+    while len(sel_level1)<p:
+        while len(rcl1) < k and level1:
+            rcl1.append(level1.popleft())
+
+        sel_i = randrange(len(rcl1))
+        sel = rcl1[sel_i]
+        del rcl1[sel_i]
+
+        sel_level1.append(sel)
+
+    level1 = sel_level1
+
+    for l2 in level2:
+        l2.cSum = sum(l2.c)
+    level2.sort(key=lambda x: x.cSum)
+    level2 = deque(level2)
+    sel_level2 = []
+    rcl2 = []
+    while len(sel_level2)<q:
+        while len(rcl2) < k and level2:
+            rcl2.append(level2.popleft())
+
+        sel_i = randrange(len(rcl2))
+        sel = rcl2[sel_i]
+        del rcl2[sel_i]
+
+        sel_level2.append(sel)
+
+    level2 = sel_level2
+
+    # Generar todas las parejas de instalaciones de nivel 1 con clientes
+    con1 = [(t[0].c[t[1].i], t[0], t[1]) for t in product(level1, clients)]
+
+    # Ordenar las parejas de menor a mayor costo
+    con1.sort(key=lambda x : x[0])
+
+    for t in con1:
+        l = t[1]
+        cl = t[2]
+        # Llevar el máximo material posible entre el cliente y la instalación
+        flow = min(cl.d-cl.sd, l.m-l.uSum)
+        # Actualizar la demanda satisfecha del cliente
+        cl.sd += flow
+        # Actualizar el flujo de material saliente de la instalación
+        l.u[cl.i] += flow
+        l.uSum += flow
+
+    # Repetir un proceso similar al anterior pero tomando como clientes
+    # a las instalaciones de nivel 1
+    con2 = [(t[0].c[t[1].i], t[0], t[1]) for t in product(level2, level1)]
+
+    # Ordenar las parejas de menor a mayor costo
+    con2.sort(key=lambda x : x[0])
+
+    for t in con2:
+        l = t[1]
+        cl = t[2]
+        # Llevar el máximo material posible entre instalaciones
+        flow = min(cl.uSum-cl.inflow, l.m-l.uSum)
+        # Actualizar el flujo entrante de la instalación de nivel 1
+        cl.inflow += flow
+        # Actualizar el flujo de material saliente de la instalación de nivel 2
+        l.u[cl.i] += flow
+        l.uSum += flow
+
+    for cl in clients:
+        assert(cl.d==cl.sd)
+
+    return level1, level2, clients
+
 # Asegurarse que los atributos de la solución tengan los valores que deberían
 def setup_solution(sol):
     for location in sol.level1:
