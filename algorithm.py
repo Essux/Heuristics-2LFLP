@@ -626,3 +626,26 @@ def variable_neighborhood_descent(sol):
 
     return sol
 
+def grasp(empty_sol, iterations = 10, k=5, rcl_method=rcl_constructive2):
+    print('Method: {}'.format(rcl_method.__name__))
+    best_sol = None
+    best_obj = inf
+    for i in range(iterations):
+        level1_temp, level2_temp, clients_temp = copy_solution(empty_sol.level1, empty_sol.level2, empty_sol.clients)
+        sel_level1, sel_level2, clients = rcl_method(level1_temp, level2_temp, clients_temp, empty_sol.p, empty_sol.q, k = k)
+
+        sel_solution = Solution(sel_level1, sel_level2, clients, empty_sol.p, empty_sol.q)
+        empty_solution = Solution(empty_sol.level1, empty_sol.level2, empty_sol.clients, empty_sol.p, empty_sol.q)
+        full_solution = mergeSolutions(sel_solution, empty_solution)
+        func_obj = obj_function(full_solution.level1, full_solution.level2)
+        #print('GRASP it {} starts with {:,.2f}'.format(i+1, func_obj))
+
+        sol = variable_neighborhood_descent(full_solution)
+        func_obj = obj_function(sol.level1, sol.level2)
+        #print('GRASP it {} ends with {:,.2f}'.format(i+1, func_obj))
+
+        if func_obj < best_obj:
+            best_sol = sol
+            best_obj = func_obj
+
+    return best_sol
