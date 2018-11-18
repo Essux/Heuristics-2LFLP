@@ -1,9 +1,10 @@
 from math import inf, sqrt
-from itertools import product, combinations, combinations_with_replacement
-from random import sample, normalvariate, randrange
+from itertools import product, combinations, combinations_with_replacement, accumulate
+from random import sample, normalvariate, randrange, random
 from custom_util import obj_function, copy_solution, mergeSolutions
-from objects import Solution
+from objects import Solution, RandomKeySolution
 from collections import deque
+from bisect import bisect
 
 """
  Selecciona las instalaciones de mayor capacidad y
@@ -649,3 +650,175 @@ def grasp(empty_sol, iterations = 10, k=5, rcl_method=rcl_constructive2):
             best_obj = func_obj
 
     return best_sol
+
+
+#--------------- Genetic Algorithm ---------------#
+
+def genetic_algorithm(sol, population_size, mutation_prob, generations, num_children):
+    l1_size = len(sol.level1)
+    l2_size = len(sol.level2)
+    clients_size = len(sol.clients)
+
+    population = [generate_individual(l1_size, l2_size, clients_size) for x in range(population_size)]
+    for ind in population:
+        ind_sol = construct_from_RK(ind, sol)
+        ind.func_obj = obj_function(ind_sol.level1, ind_sol.level2)
+    population.sort(key=lambda x : x.func_obj)
+
+    best_sol = None
+    best_fitness = inf
+
+    import matplotlib.pyplot as plt
+
+    plot_data = {}
+    for i in range(0, 100, 20):
+        plot_data[i] = []
+
+    for cur_gen in range(generations):
+        sel_prob = normalize_obj_func(population)
+        new_generation = []
+        for i in range(num_children):
+            par1, par2 = parent_selection(sel_prob)
+            par1 = population[par1]
+            par2 = population[par2]
+            son = crossover(par1, par2)
+            if random() < mutation_prob:
+                son = mutate(son)
+            new_generation.append(son)
+
+        for ind in new_generation:
+            ind_sol = construct_from_RK(ind, sol)
+            ind.func_obj = obj_function(ind_sol.level1, ind_sol.level2)
+
+        population = population + new_generation
+        population.sort(key=lambda x : x.func_obj)
+        population = population[:population_size]
+
+        print('In generation {}'.format(cur_gen+1))
+        for i in range(0, 100, 20):
+            plot_data[i].append(population[i].func_obj)
+            print('Individual {}: {:.2f}'.format(i, population[i].func_obj))
+
+
+    for i in range(0, 100, 20):
+        plt.plot([x for x in range(len(plot_data[i]))], plot_data[i], label='{}th'.format(i+1))
+
+    plt.legend(loc='upper right')
+    plt.show()
+    return construct_from_RK(population[0], sol)
+
+
+# Crear un individuo inicializándolo con un RK aleatorio
+def generate_individual(level1_size, level2_size, clients_size):
+    rk_obj = RandomKeySolution()
+    rk_obj.level1 = [random() for x in range(level1_size)]
+    rk_obj.level2 = [random() for x in range(level2_size)]
+    rk_obj.flows_l1 = [random() for x in range(level1_size * clients_size)]
+    rk_obj.flows_l2 = [random() for x in range(level2_size * level1_size)]
+    return rk_obj
+
+
+def parent_selection(accum):
+    s = set()
+    while len(s) < 2:
+        s.add(bisect(accum, random()))
+    return tuple(s)
+
+
+def normalize_obj_func(population):
+    fitness = [1/x.func_obj for x in population]
+    sum_fitness = sum(fitness)
+    fitness = [x/sum_fitness for x in fitness]
+    fitness = list(accumulate(fitness))
+    return fitness
+
+
+def crossover(p1, p2):
+    son = RandomKeySolution()
+
+    def uniform_fill(arr1, arr2):
+        arr_son = []
+        for x, y in zip(arr1, arr2):
+            val = x if random() < 0.5 else y
+            arr_son.append(val)
+        return arr_son
+
+    son.level1 = uniform_fill(p1.level1, p2.level1)
+    son.level2 = uniform_fill(p1.level2, p2.level2)
+    son.flows_l1 = uniform_fill(p1.flows_l1, p2.flows_l1)
+    son.flows_l2 = uniform_fill(p1.flows_l2, p2.flows_l2)
+    return son
+
+
+def mutate(ind, gene_mutations=5):
+    sel_id = randrange(4)
+    sel_arr = [ind.level1, ind.level2, ind.flows_l1, ind.flows_l2][sel_id]
+    if sel_id>1: gene_mutations *= 20
+    for i in range(gene_mutations):
+        sel_arr[randrange(len(sel_arr))] = random()
+
+    return ind
+
+
+# Reconstruir la solución a partir del Random Key
+def construct_from_RK(rk_sol, sol):
+    level1, level2, clients = copy_solution(sol.level1, sol.level2, sol.clients)
+    l1_size = len(level1)
+    l2_size = len(level2)
+    clients_size = len(clients)
+
+    # Garantizar que ninguna instalación esté seleccionada
+    for l1 in level1:
+        l1.is_in = False
+
+    # Seleccionar las primeras p que tengan menor random key
+    sel_level1 = [(rk_sol.level1[i], i) for i in range(l1_size)]
+    sel_level1.sort()
+    for i in range(sol.p):
+        idx = sel_level1[i][1]
+        level1[idx].is_in = True
+
+    # Garantizar que ninguna instalación esté seleccionada
+    for l2 in level2:
+        l2.is_in = False
+
+    # Seleccionar las primeras q que tengan menor random key
+    sel_level2 = [(rk_sol.level2[i], i) for i in range(l2_size)]
+    sel_level2.sort()
+    for i in range(sol.q):
+        idx = sel_level2[i][1]
+        level2[idx].is_in = True
+
+    # Ordenar las aristas de menor a mayor y hallar qué vértices conectan
+    sel_flows_l1 = [(rk_sol.flows_l1[i], i//clients_size, i%clients_size) for i in range(len(rk_sol.flows_l1))]
+    sel_flows_l1.sort()
+
+    for t in sel_flows_l1:
+        l = level1[t[1]]
+        cl = clients[t[2]]
+        if not l.is_in: continue
+        # Llevar el máximo material posible entre el cliente y la instalación
+        flow = min(cl.d-cl.sd, l.m-l.uSum)
+        # Actualizar la demanda satisfecha del cliente
+        cl.sd += flow
+        # Actualizar el flujo de material saliente de la instalación
+        l.u[cl.i] += flow
+        l.uSum += flow
+
+    # Ordenar las aristas de menor a mayor y hallar qué vértices conectan
+    sel_flows_l2 = [(rk_sol.flows_l2[i], i//l1_size, i%l1_size) for i in range(len(rk_sol.flows_l2))]
+    sel_flows_l2.sort()
+
+    for t in sel_flows_l2:
+        l = level2[t[1]]
+        cl = level1[t[2]]
+        if not l.is_in: continue
+        # Llevar el máximo material posible entre instalaciones
+        flow = min(cl.uSum-cl.inflow, l.m-l.uSum)
+        # Actualizar el flujo entrante de la instalación de nivel 1
+        cl.inflow += flow
+        # Actualizar el flujo de material saliente de la instalación de nivel 2
+        l.u[cl.i] += flow
+        l.uSum += flow
+
+    return Solution(level1=level1, level2=level2, clients=clients, p=sol.p, q=sol.q)

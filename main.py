@@ -31,7 +31,7 @@ calculateWeights(level1, level2, clients)
 model_export(filename + '.dat', clients, level1, level2, p, q)
 
 METHOD_NAMES = ['Constructive Method', 'Random + MaxFlow', 'Greedy + MaxFlow', 'Noise + Greedy + MaxFlow', 'RCL', '', 'RCL2']
-SEARCH_NAMES = ['', 'Local Search', 'VND', 'GRASP']
+SEARCH_NAMES = ['', 'Local Search', 'VND', 'GRASP', 'Genetic Algorithm']
 
 def executeMethod(op):
     global level1, level2, clients, p, q
@@ -72,6 +72,8 @@ def execute_search_method(op, sel_level1, sel_level2, clients, p, q):
         return variable_neighborhood_descent(full_solution)
     elif op == 3:
         return grasp(full_solution)
+    elif op == 4:
+        return genetic_algorithm(full_solution, 200, 0.5, 150, 100)
 
 # 0 -> Constructive
 # 1 -> Random
@@ -80,15 +82,16 @@ def execute_search_method(op, sel_level1, sel_level2, clients, p, q):
 # 4 -> RCL
 # 5 -> Do nothing
 # 6 -> RCL2
-CHOOSE_INITIAL = [0, 1, 2, 3, 4, 6]
+CHOOSE_INITIAL = [0, 3, 5]
 
 # 0 -> Do nothing
 # 1 -> Local search
 # 2 -> VND
 # 3 -> GRASP
-CHOOSE_SEARCH = [2] * 6
+# 4 -> Genetic Algorithm
+CHOOSE_SEARCH = [0, 0, 4]
 
-test_file = open('vnd_test.csv', 'a')
+test_file = open('test.csv', 'a')
 test_file.write(str(len(clients)))
 
 for op, op_search in zip(CHOOSE_INITIAL, CHOOSE_SEARCH):
@@ -119,16 +122,16 @@ for op, op_search in zip(CHOOSE_INITIAL, CHOOSE_SEARCH):
         # plt.title('{}: {:,.0f}'.format(METHOD_NAMES[op], obj_function(sel_level1, sel_level2)))
 
         printSolution(sel_level1, sel_level2, clients, p, q, ps)
-        plotSolution(sel_level1, sel_level2, clients)
+        #plotSolution(sel_level1, sel_level2, clients)
 
         func_obj = obj_function(sel_level1, sel_level2)
         st = ";{:.3f};{:.3f}".format(func_obj, ps.total_tt)
         st = st.replace('.', ',')
         test_file.write(st)
 
-        #plt.show()
-        #plt.savefig('imgs/'+METHOD_NAMES[op])
-        #plt.clf()
+        # plt.show()
+        # plt.savefig('imgs/'+METHOD_NAMES[op])
+        # plt.clf()
     except AssertionError:
         print('The algorithm was not able to find a feasible solution')
 
