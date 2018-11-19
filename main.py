@@ -73,7 +73,7 @@ def execute_search_method(op, sel_level1, sel_level2, clients, p, q):
     elif op == 3:
         return grasp(full_solution)
     elif op == 4:
-        return genetic_algorithm(full_solution, 200, 0.5, 150, 100)
+        return genetic_algorithm(full_solution, 100, 0.5)
 
 # 0 -> Constructive
 # 1 -> Random
@@ -82,17 +82,14 @@ def execute_search_method(op, sel_level1, sel_level2, clients, p, q):
 # 4 -> RCL
 # 5 -> Do nothing
 # 6 -> RCL2
-CHOOSE_INITIAL = [0, 3, 5]
+CHOOSE_INITIAL = [3, 5]
 
 # 0 -> Do nothing
 # 1 -> Local search
 # 2 -> VND
 # 3 -> GRASP
 # 4 -> Genetic Algorithm
-CHOOSE_SEARCH = [0, 0, 4]
-
-test_file = open('test.csv', 'a')
-test_file.write(str(len(clients)))
+CHOOSE_SEARCH = [2, 4]
 
 for op, op_search in zip(CHOOSE_INITIAL, CHOOSE_SEARCH):
     try:
@@ -101,12 +98,6 @@ for op, op_search in zip(CHOOSE_INITIAL, CHOOSE_SEARCH):
         pr.enable()
 
         sel_level1, sel_level2, clients = executeMethod(op)
-        func_obj = obj_function(sel_level1, sel_level2)
-        print('Función Objetivo: {:.2f}'.format(func_obj))
-
-        st = ";{:.3f}".format(func_obj)
-        st = st.replace('.', ',')
-        test_file.write(st)
 
         sol = execute_search_method(op_search, sel_level1, sel_level2, clients, p, q)
 
@@ -116,24 +107,16 @@ for op, op_search in zip(CHOOSE_INITIAL, CHOOSE_SEARCH):
         ps = save_profile_file(filename, pr)
 
         # Graficar entradas
-        # plotAnnot(level1, 'b')
-        # plotAnnot(clients, 'r')
-        # plotAnnot(level2, 'g')
-        # plt.title('{}: {:,.0f}'.format(METHOD_NAMES[op], obj_function(sel_level1, sel_level2)))
+        plotAnnot(level1, 'b')
+        plotAnnot(clients, 'r')
+        plotAnnot(level2, 'g')
+        plt.title('{}: {:,.0f}'.format(METHOD_NAMES[op]+'+'+SEARCH_NAMES[op_search], obj_function(sel_level1, sel_level2)))
 
         printSolution(sel_level1, sel_level2, clients, p, q, ps)
-        #plotSolution(sel_level1, sel_level2, clients)
+        plotSolution(sel_level1, sel_level2, clients)
 
-        func_obj = obj_function(sel_level1, sel_level2)
-        st = ";{:.3f};{:.3f}".format(func_obj, ps.total_tt)
-        st = st.replace('.', ',')
-        test_file.write(st)
-
-        # plt.show()
-        # plt.savefig('imgs/'+METHOD_NAMES[op])
-        # plt.clf()
+        plt.show()
+        plt.savefig('imgs/'+METHOD_NAMES[op])
+        plt.clf()
     except AssertionError:
         print('The algorithm was not able to find a feasible solution')
-
-test_file.write('\n')
-test_file.close()

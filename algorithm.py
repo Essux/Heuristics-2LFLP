@@ -5,6 +5,7 @@ from custom_util import obj_function, copy_solution, mergeSolutions
 from objects import Solution, RandomKeySolution
 from collections import deque
 from bisect import bisect
+import time
 
 """
  Selecciona las instalaciones de mayor capacidad y
@@ -654,7 +655,7 @@ def grasp(empty_sol, iterations = 10, k=5, rcl_method=rcl_constructive2):
 
 #--------------- Genetic Algorithm ---------------#
 
-def genetic_algorithm(sol, population_size, mutation_prob, generations, num_children):
+def genetic_algorithm(sol, population_size, mutation_prob):
     l1_size = len(sol.level1)
     l2_size = len(sol.level2)
     clients_size = len(sol.clients)
@@ -665,19 +666,11 @@ def genetic_algorithm(sol, population_size, mutation_prob, generations, num_chil
         ind.func_obj = obj_function(ind_sol.level1, ind_sol.level2)
     population.sort(key=lambda x : x.func_obj)
 
-    best_sol = None
-    best_fitness = inf
-
-    import matplotlib.pyplot as plt
-
-    plot_data = {}
-    for i in range(0, 100, 20):
-        plot_data[i] = []
-
-    for cur_gen in range(generations):
+    start_time = time.time()
+    while time.time() - start_time < 60 * 0.05:
         sel_prob = normalize_obj_func(population)
         new_generation = []
-        for i in range(num_children):
+        for i in range(population_size):
             par1, par2 = parent_selection(sel_prob)
             par1 = population[par1]
             par2 = population[par2]
@@ -686,6 +679,7 @@ def genetic_algorithm(sol, population_size, mutation_prob, generations, num_chil
                 son = mutate(son)
             new_generation.append(son)
 
+        # Calcular la función objetivo de la nueva generación
         for ind in new_generation:
             ind_sol = construct_from_RK(ind, sol)
             ind.func_obj = obj_function(ind_sol.level1, ind_sol.level2)
@@ -694,18 +688,8 @@ def genetic_algorithm(sol, population_size, mutation_prob, generations, num_chil
         population.sort(key=lambda x : x.func_obj)
         population = population[:population_size]
 
-        print('In generation {}'.format(cur_gen+1))
-        for i in range(0, 100, 20):
-            plot_data[i].append(population[i].func_obj)
-            print('Individual {}: {:.2f}'.format(i, population[i].func_obj))
 
-
-    for i in range(0, 100, 20):
-        plt.plot([x for x in range(len(plot_data[i]))], plot_data[i], label='{}th'.format(i+1))
-
-    plt.legend(loc='upper right')
-    plt.show()
-    return construct_from_RK(population[0], sol)
+    return variable_neighborhood_descent(construct_from_RK(population[0], sol))
 
 
 # Crear un individuo inicializándolo con un RK aleatorio
