@@ -1,5 +1,18 @@
 Este proyecto fue hecho como parte de la materia de Heurística.
 
+## Algoritmos Desarrollados
+- Algoritmo Constructivo (Aristas de menor costo)
+- Min Cost Max Flow (Edmonds Karp Successive Shortest Path)
+- Algoritmo Aleatorio + Min Cost Max Flow
+- Algoritmo Greedy (Instalación con menor costo promedio) + Min Cost Max Flow
+- Algoritmo Greedy con Ruido + Min Cost Max Flow
+- Algoritmo con Lista Restringida de Candidatos (Aristas de menor costo)
+- Algoritmo con Lista Restringida de Candidatos (Instalación con menor costo promedio)
+- Búsqueda Local
+- Variable Neigborhood Descent
+- Algoritmo GRASP
+- Algoritmo Genético + Variable Neighborhood Descent
+
 ## Ejecución
 Para ejecutar el proyecto debe usarse el comando:
 `python main.py`
