@@ -1,3 +1,5 @@
+from math import inf
+
 class Solution:
     def __init__(self, level1 = [], level2 = [], clients = [], p = 0, q = 0):
         self.level1 = level1
@@ -72,3 +74,12 @@ class Facility:
             import copy
             new_obj.u = copy.deepcopy(self.u)
         return new_obj
+
+
+class RandomKeySolution:
+    def __init__(self):
+        self.level1 = []
+        self.level2 = []
+        self.flows_l1 = []
+        self.flows_l2 = []
+        self.func_obj = inf
